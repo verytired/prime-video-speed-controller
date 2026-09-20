@@ -1,10 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Prime Video Speed Controller",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Amazon Prime Videoの再生速度を自由に変更できる拡張機能。",
+  "minimum_chrome_version": "111",
   "permissions": ["scripting", "activeTab", "storage"],
-  "host_permissions": ["*://www.amazon.co.jp/gp/video/detail/*"],
+  "host_permissions": [
+    "*://www.amazon.co.jp/gp/video/*",
+    "*://www.amazon.com/gp/video/*",
+    "*://www.primevideo.com/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -15,9 +20,25 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://www.amazon.co.jp/gp/video/detail/*"],
-      "js": ["content.js"]
+      "matches": [
+        "*://www.amazon.co.jp/gp/video/*",
+        "*://www.amazon.com/gp/video/*",
+        "*://www.primevideo.com/*"
+      ],
+      "js": ["inject.js"],
+      "world": "MAIN",
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "*://www.amazon.co.jp/gp/video/*",
+        "*://www.amazon.com/gp/video/*",
+        "*://www.primevideo.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ]
 }
-

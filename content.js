@@ -1,74 +1,78 @@
+// 拡張側（isolated world）の content script。
+// 保存済みの速度やポップアップ／ショートカットからの指示を inject.js（MAIN world）へ中継する。
 (() => {
-  console.log("[PrimeSpeed] content script active");
+  if (window.__primeSpeedLoaded) return;
+  window.__primeSpeedLoaded = true;
 
-  let lastRate = 1.0;
+  const MSG_SOURCE = "primespeed";
+  const MIN_RATE = 0.25;
+  const MAX_RATE = 4.0;
+  const STEP = 0.25;
+  let currentRate = 1.0;
 
-  // video要素を常時監視してplaybackRateを適用
-  function keepApplyingSpeed(rate) {
-    lastRate = rate;
-    const apply = () => {
-      const videos = document.querySelectorAll("video");
-      if (videos.length === 0) {
-        // videoが無い場合は何もしない
-        return;
-      }
-      videos.forEach((video) => {
-        if (video.playbackRate !== rate) {
-          video.playbackRate = rate;
-          console.log(`[PrimeSpeed] playbackRate set to ${rate}`);
-        }
-      });
-    };
-
-    // 初回即時適用
-    apply();
-
-    // 定期的に再適用（videoの再生成やSPA遷移対策）
-    if (window.__primeSpeedInterval) clearInterval(window.__primeSpeedInterval);
-    window.__primeSpeedInterval = setInterval(apply, 1000);
-
-    // MutationObserverでDOM変化も監視
-    if (!window.__primeSpeedObserver) {
-      window.__primeSpeedObserver = new MutationObserver(apply);
-      window.__primeSpeedObserver.observe(document.body, { childList: true, subtree: true });
-    }
+  function sendToPage(rate) {
+    window.postMessage({ source: MSG_SOURCE, type: "SET_RATE", rate }, "*");
   }
 
-  // 設定済み速度を適用
+  // MAIN world を経由しないフォールバック（setter 上書きと併用）
+  function applyDirect(rate) {
+    document.querySelectorAll("video").forEach((v) => {
+      if (v.playbackRate !== rate) v.playbackRate = rate;
+    });
+  }
+
+  function setRate(rate, { save = true } = {}) {
+    currentRate = rate;
+    sendToPage(rate);
+    applyDirect(rate);
+    if (save) chrome.storage.local.set({ playbackRate: rate });
+  }
+
+  function getVideoRate() {
+    const v = [...document.querySelectorAll("video")].find((el) => el.readyState > 0) || document.querySelector("video");
+    return v ? v.playbackRate : currentRate;
+  }
+
+  // 保存済み速度を読み込んで適用
   chrome.storage.local.get("playbackRate", (data) => {
-    const rate = data.playbackRate || 1.0;
-    console.log(`[PrimeSpeed] apply stored playbackRate: ${rate}`);
-    keepApplyingSpeed(rate);
+    const rate = Number(data.playbackRate) || 1.0;
+    setRate(rate, { save: false });
   });
 
-  // ショートカットキーで速度変更
-  document.addEventListener("keydown", (e) => {
-    if (!e.shiftKey) return;
-    const video = document.querySelector("video");
-    if (!video) {
-      console.log("[PrimeSpeed] video element not found (keydown)");
-      return;
-    }
-
-    let rate = video.playbackRate;
-    if (e.key === "ArrowUp") {
-      rate = Math.min(rate + 0.25, 2.0);
-    } else if (e.key === "ArrowDown") {
-      rate = Math.max(rate - 0.25, 0.5);
-    } else return;
-
-    chrome.storage.local.set({ playbackRate: rate });
-    keepApplyingSpeed(rate);
-    console.log(`[PrimeSpeed] playbackRate changed to ${rate}`);
+  // inject.js の準備完了通知を受けたら再送（読み込み順の差異に備える）
+  window.addEventListener("message", (e) => {
+    if (e.source !== window || !e.data || e.data.source !== MSG_SOURCE) return;
+    if (e.data.type === "READY") sendToPage(currentRate);
   });
 
-  // popup.jsからのメッセージを受信
-  chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
-    console.log("[PrimeSpeed] onMessage received", req);
+  // video 要素の再生成・SPA遷移対策として定期再適用
+  setInterval(() => applyDirect(currentRate), 1000);
+
+  // ショートカット: Shift+↑ / Shift+↓
+  document.addEventListener(
+    "keydown",
+    (e) => {
+      if (!e.shiftKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      const base = getVideoRate();
+      const next =
+        e.key === "ArrowUp"
+          ? Math.min(base + STEP, MAX_RATE)
+          : Math.max(base - STEP, MIN_RATE);
+      setRate(Math.round(next * 100) / 100);
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    true
+  );
+
+  // ポップアップからのメッセージ
+  chrome.runtime.onMessage.addListener((req, _sender, sendResponse) => {
     if (req.type === "SET_SPEED") {
-      chrome.storage.local.set({ playbackRate: req.value });
-      keepApplyingSpeed(req.value);
-      sendResponse({ result: "ok" });
+      setRate(Number(req.value));
+      sendResponse({ result: "ok", rate: currentRate });
+    } else if (req.type === "GET_SPEED") {
+      sendResponse({ result: "ok", rate: getVideoRate(), hasVideo: !!document.querySelector("video") });
     }
+    return false;
   });
 })();
