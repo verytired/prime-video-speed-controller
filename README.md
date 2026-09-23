@@ -1,48 +1,48 @@
 # Prime Video Speed Controller
 
-Amazon Prime Videoの再生速度を自由に変更できるChrome拡張機能です。
+A Chrome extension that lets you freely change the playback speed of Amazon Prime Video.
 
-## 機能
-- Prime Videoの再生速度を0.25x～4.0xで調整（スライダー・±ボタン・プリセット 1.0/1.25/1.5/2.0/3.0）
-- ポップアップUIで速度選択
-- Shift+↑/↓で±0.25倍速変更
-- 設定はchrome.storage.localに保存
-- Prime Video動画ページでのみ動作
-- プレイヤー側の速度リセットを無効化（ページ本体で playbackRate の setter を上書き）
+## Features
+- Adjust Prime Video playback speed from 0.25x to 4.0x (slider, +/- buttons, presets 1.0/1.25/1.5/2.0/3.0)
+- Select the speed from the popup UI
+- Change speed by ±0.25x with Shift+↑/↓
+- Settings are saved in chrome.storage.local
+- Works only on Prime Video video pages
+- Prevents the player from resetting the speed (overrides the `playbackRate` setter in the page context)
 
-## 使い方
-1. Chromeで拡張機能をデベロッパーモードで読み込む
-2. Prime Videoで動画再生
-3. 拡張アイコンから速度選択
-4. 速度が即時反映されることを確認
+## Usage
+1. Load the extension in Chrome in developer mode
+2. Play a video on Prime Video
+3. Select a speed from the extension icon
+4. Confirm that the speed is applied immediately
 
-## ディレクトリ構成
+## Directory Structure
 - manifest.json
-- inject.js（ページ本体で動作。playbackRate の setter を上書きしてサイト側のリセットを防ぐ）
-- content.js（拡張側。保存済み速度・ポップアップ・ショートカットの指示を inject.js へ中継）
+- inject.js (runs in the page context; overrides the `playbackRate` setter to prevent the site from resetting the speed)
+- content.js (extension side; relays the saved speed and instructions from the popup and shortcuts to inject.js)
 - popup.html
 - popup.js
 - style.css
 - icons/
 
-## 動作手順
-1. このリポジトリのフォルダをそのままPC上に展開します。
-2. Chromeで「chrome://extensions/」にアクセスします。
-3. 右上の「デベロッパーモード」をONにします。
-4. 「パッケージ化されていない拡張機能を読み込む」ボタンをクリックし、本フォルダを選択します。
-5. 拡張機能が追加され、ツールバーにアイコンが表示されます。
-6. Amazon Prime Videoの動画ページ（https://www.amazon.co.jp/gp/video/* または primevideo.com）を開き、動画を再生します。
-7. 拡張アイコンをクリックし、ポップアップから速度を選択してください。
-8. または、動画再生中に「Shift + ↑」で+0.25倍、「Shift + ↓」で-0.25倍の速度調整ができます。
+## Installation
+1. Place this repository's folder on your PC as is.
+2. Open `chrome://extensions/` in Chrome.
+3. Turn on "Developer mode" in the top right corner.
+4. Click "Load unpacked" and select this folder.
+5. The extension is added and its icon appears in the toolbar.
+6. Open an Amazon Prime Video page (https://www.amazon.co.jp/gp/video/* or primevideo.com) and play a video.
+7. Click the extension icon and select a speed from the popup.
+8. Alternatively, while a video is playing, press "Shift + ↑" to increase the speed by 0.25x or "Shift + ↓" to decrease it by 0.25x.
 
-## 更新後の注意
-- 拡張を更新したら chrome://extensions/ で「更新」（再読み込み）を押し、開いている Prime Video のタブも再読み込みしてください。
-- Chrome 111 以上が必要です（content_scripts の `world: "MAIN"` を使用）。
+## Notes After Updating
+- After updating the extension, click "Reload" on `chrome://extensions/` and also reload any open Prime Video tabs.
+- Chrome 111 or later is required (uses `world: "MAIN"` for content_scripts).
 
-## 変更履歴
-- 1.1.0: Prime Video プレイヤーが再生中に速度を 1x へ戻す挙動に対応。MAIN world での setter 上書き方式に変更し、content script 未注入時はポップアップから自動注入するようにした。ポップアップをスライダー・±ボタン・プリセット付きの UI に刷新し、速度レンジを 0.25x〜4.0x に拡大。
-- 1.0.0: 初版
+## Changelog
+- 1.1.0: Handled the Prime Video player resetting the speed to 1x during playback. Switched to overriding the setter in the MAIN world, and the popup now injects the content script automatically if it has not been injected. Redesigned the popup with a slider, +/- buttons and presets, and expanded the speed range to 0.25x–4.0x.
+- 1.0.0: Initial release
 
 ---
 
-何か問題があればREADMEやコードを見直してください。
+If you run into any problems, please review the README and the code.
